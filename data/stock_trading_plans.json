@@ -1,0 +1,11 @@
+{
+  "AAPL": {
+    "initial_entry": "",
+    "entry_size": "",
+    "scale_up_condition": "",
+    "scale_down_condition": "1",
+    "exit_strategy": "1",
+    "wrong_scenario": "1",
+    "last_updated": "2025-06-26 15:02:58"
+  }
+}

@@ -102,11 +102,28 @@ def morning_setup_tab(dm):
         last_week_stocks = dm.get_last_week_stocks()
         if last_week_stocks:
             for stock in last_week_stocks:
-                st.write(f"• {stock['symbol']}: {stock['reason']}")
-                if st.button(f"Add {stock['symbol']} to today", key=f"add_{stock['symbol']}"):
-                    dm.add_today_stock(stock['symbol'], stock['reason'])
-                    st.success(f"Added {stock['symbol']} to today's watchlist!")
-                    st.rerun()
+                stock_plan = dm.get_stock_trading_plan(stock['symbol'])
+                plan_indicator = " 📋" if stock_plan else ""
+                
+                with st.expander(f"{stock['symbol']}{plan_indicator} - {stock['reason']}", expanded=False):
+                    col_a, col_b = st.columns([1, 1])
+                    with col_a:
+                        if st.button(f"Add to Today", key=f"add_{stock['symbol']}"):
+                            dm.add_today_stock(stock['symbol'], stock['reason'])
+                            st.success(f"Added {stock['symbol']} to today's watchlist!")
+                            st.rerun()
+                    
+                    with col_b:
+                        st.write(f"Added: {stock.get('date_added', 'Unknown')}")
+                    
+                    if stock_plan:
+                        st.write("**Trading Plan:**")
+                        if stock_plan.get('initial_entry'):
+                            st.write(f"Entry: {stock_plan['initial_entry']}")
+                        if stock_plan.get('exit_strategy'):
+                            st.write(f"Exit: {stock_plan['exit_strategy']}")
+                    else:
+                        st.info("No trading plan set")
         else:
             st.write("No stocks from last week")
     
@@ -115,11 +132,28 @@ def morning_setup_tab(dm):
         permanent_stocks = dm.get_permanent_stocks()
         if permanent_stocks:
             for stock in permanent_stocks:
-                st.write(f"• {stock['symbol']}: {stock['reason']}")
-                if st.button(f"Add {stock['symbol']} to today", key=f"add_perm_{stock['symbol']}"):
-                    dm.add_today_stock(stock['symbol'], stock['reason'])
-                    st.success(f"Added {stock['symbol']} to today's watchlist!")
-                    st.rerun()
+                stock_plan = dm.get_stock_trading_plan(stock['symbol'])
+                plan_indicator = " 📋" if stock_plan else ""
+                
+                with st.expander(f"{stock['symbol']}{plan_indicator} - {stock['reason']}", expanded=False):
+                    col_a, col_b = st.columns([1, 1])
+                    with col_a:
+                        if st.button(f"Add to Today", key=f"add_perm_{stock['symbol']}"):
+                            dm.add_today_stock(stock['symbol'], stock['reason'])
+                            st.success(f"Added {stock['symbol']} to today's watchlist!")
+                            st.rerun()
+                    
+                    with col_b:
+                        st.write(f"Added: {stock.get('date_added', 'Unknown')}")
+                    
+                    if stock_plan:
+                        st.write("**Trading Plan:**")
+                        if stock_plan.get('initial_entry'):
+                            st.write(f"Entry: {stock_plan['initial_entry']}")
+                        if stock_plan.get('exit_strategy'):
+                            st.write(f"Exit: {stock_plan['exit_strategy']}")
+                    else:
+                        st.info("No trading plan set")
         else:
             st.write("No permanent stocks")
 
@@ -349,7 +383,31 @@ def trading_day_tab(dm):
     with col1:
         st.write("**Today's Watchlist:**")
         for stock in today_stocks:
-            st.write(f"• **{stock['symbol']}**: {stock['reason']}")
+            stock_plan = dm.get_stock_trading_plan(stock['symbol'])
+            
+            # Display stock with expandable plan
+            with st.expander(f"📊 {stock['symbol']} - {stock['reason']}", expanded=False):
+                if stock_plan:
+                    st.write("**📋 Trading Plan:**")
+                    
+                    if stock_plan.get('initial_entry'):
+                        st.write(f"**Entry:** {stock_plan['initial_entry']}")
+                    if stock_plan.get('entry_size'):
+                        st.write(f"**Size:** {stock_plan['entry_size']}")
+                    if stock_plan.get('scale_up_condition'):
+                        st.write(f"**Scale Up:** {stock_plan['scale_up_condition']}")
+                    if stock_plan.get('scale_down_condition'):
+                        st.write(f"**Scale Down:** {stock_plan['scale_down_condition']}")
+                    if stock_plan.get('exit_strategy'):
+                        st.write(f"**Exit:** {stock_plan['exit_strategy']}")
+                    if stock_plan.get('wrong_scenario'):
+                        st.write(f"**If Wrong:** {stock_plan['wrong_scenario']}")
+                    
+                    if stock_plan.get('last_updated'):
+                        st.caption(f"Last updated: {stock_plan['last_updated']}")
+                else:
+                    st.info(f"No trading plan set for {stock['symbol']}.")
+                    st.write("Go to **Trading Day** tab to create a plan for this stock.")
     
     with col2:
         st.subheader("🚨 Most Repeated Mistake (Last Week)")
