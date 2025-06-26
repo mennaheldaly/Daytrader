@@ -349,18 +349,24 @@ def trading_day_tab(dm):
                 # Load existing drawings
                 saved_drawings = dm.get_stock_chart_drawings(symbol)
                 
-                # Display chart image first
-                st.image(chart_img, caption=f"{symbol} Stock Chart", use_container_width=True)
+                # Convert chart to PIL Image for canvas background
+                from PIL import Image
+                chart_image = Image.open(io.BytesIO(chart_img))
                 
-                # Drawing canvas overlay
+                # Resize chart image to fit canvas dimensions
+                canvas_width = 900
+                canvas_height = 450
+                chart_image = chart_image.resize((canvas_width, canvas_height), Image.Resampling.LANCZOS)
+                
+                # Drawing canvas with chart as background
                 canvas_result = st_canvas(
                     fill_color="rgba(255, 165, 0, 0.1)",
                     stroke_width=mode_config["stroke_width"],
                     stroke_color=mode_config["color"],
-                    background_color="#ffffff",
+                    background_image=chart_image,
                     update_streamlit=True,
-                    height=400,
-                    width=800,
+                    height=canvas_height,
+                    width=canvas_width,
                     drawing_mode="freedraw",
                     point_display_radius=3,
                     display_toolbar=True,
