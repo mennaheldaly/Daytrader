@@ -8,10 +8,13 @@ import numpy as np
 
 def get_stock_chart(symbol: str, period: str = "1d", interval: str = "5m"):
     """
-    Fetch stock data and create a chart image
+    Fetch stock data and create a simple line chart using matplotlib
     Returns: PIL Image object of the chart
     """
     try:
+        import matplotlib.pyplot as plt
+        import matplotlib.dates as mdates
+        
         # Fetch stock data
         stock = yf.Ticker(symbol)
         data = stock.history(period=period, interval=interval)
@@ -19,33 +22,56 @@ def get_stock_chart(symbol: str, period: str = "1d", interval: str = "5m"):
         if data.empty:
             return None
         
-        # Create candlestick chart
-        fig = go.Figure(data=go.Candlestick(
-            x=data.index,
-            open=data['Open'],
-            high=data['High'],
-            low=data['Low'],
-            close=data['Close'],
-            name=symbol
-        ))
+        # Create figure and axis
+        fig, ax = plt.subplots(figsize=(12, 6))
+        fig.patch.set_facecolor('white')
         
-        # Customize chart appearance
-        fig.update_layout(
-            title=f"{symbol} - {period.upper()} Chart",
-            xaxis_title="Time",
-            yaxis_title="Price ($)",
-            width=800,
-            height=500,
-            xaxis_rangeslider_visible=False,
-            showlegend=False,
-            margin=dict(l=50, r=50, t=80, b=50),
-            plot_bgcolor='white',
-            paper_bgcolor='white'
-        )
+        # Simple line chart of closing prices
+        ax.plot(range(len(data)), data['Close'], linewidth=2, color='blue', label='Close Price')
+        ax.fill_between(range(len(data)), data['Close'], alpha=0.3, color='lightblue')
         
-        # Convert to image
-        img_bytes = pio.to_image(fig, format="png", width=800, height=500)
-        img = Image.open(io.BytesIO(img_bytes))
+        # Add high and low lines
+        ax.plot(range(len(data)), data['High'], linewidth=1, color='green', alpha=0.7, label='High')
+        ax.plot(range(len(data)), data['Low'], linewidth=1, color='red', alpha=0.7, label='Low')
+        
+        # Customize the chart
+        ax.set_title(f"{symbol} - {period.upper()} Chart", fontsize=16, fontweight='bold')
+        ax.set_xlabel("Time", fontsize=12)
+        ax.set_ylabel("Price ($)", fontsize=12)
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        
+        # Set x-axis labels with simpler approach
+        num_ticks = min(8, len(data))
+        if num_ticks > 1:
+            tick_positions = np.linspace(0, len(data)-1, num_ticks, dtype=int)
+            ax.set_xticks(tick_positions)
+            
+            # Simple time labels
+            labels = []
+            for pos in tick_positions:
+                try:
+                    timestamp = data.index[pos]
+                    if hasattr(timestamp, 'strftime'):
+                        if period == '1d':
+                            labels.append(timestamp.strftime('%H:%M'))
+                        else:
+                            labels.append(timestamp.strftime('%m/%d'))
+                    else:
+                        labels.append(f"T{pos}")
+                except:
+                    labels.append(f"T{pos}")
+            
+            ax.set_xticklabels(labels, rotation=45)
+        
+        plt.tight_layout()
+        
+        # Convert to PIL Image
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+        buf.seek(0)
+        img = Image.open(buf)
+        plt.close(fig)
         
         return img
         

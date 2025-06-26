@@ -354,7 +354,7 @@ def trading_day_tab(dm):
                         'drop_action': drop_action,
                         'exit_plan': exit_plan,
                         'wrong_plan': wrong_plan,
-                        'canvas_data': canvas_result.json_data if canvas_result.json_data else None
+                        'canvas_data': canvas_result.json_data if canvas_result and hasattr(canvas_result, 'json_data') else None
                     }
                     dm.save_stock_trading_plan(trading_plan)
                     st.success(f"Trading plan saved for {stock['symbol']}!")
