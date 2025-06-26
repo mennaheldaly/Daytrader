@@ -349,62 +349,52 @@ def trading_day_tab(dm):
                 # Load existing drawings
                 saved_drawings = dm.get_stock_chart_drawings(symbol)
                 
-                # Display chart and create annotation system
-                st.image(chart_img, caption=f"{symbol} Stock Chart", use_container_width=True)
+                # Convert chart to PIL Image for canvas background
+                from PIL import Image
+                chart_image = Image.open(io.BytesIO(chart_img))
                 
-                # Create annotation interface below chart
-                st.write("**Chart Annotations:**")
+                # Resize chart image to fit canvas dimensions
+                canvas_width = 900
+                canvas_height = 450
+                chart_image = chart_image.resize((canvas_width, canvas_height), Image.Resampling.LANCZOS)
                 
-                # Create annotation input form
-                with st.form(f"annotation_{symbol}_{selected_mode}"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        default_price = 100.0
-                        if data is not None and len(data) > 0:
-                            default_price = float(data['Close'].iloc[-1])
-                        
-                        price_level = st.number_input(
-                            f"{selected_mode} Price Level:",
-                            min_value=0.0,
-                            value=default_price,
-                            step=0.01,
-                            format="%.2f"
-                        )
-                    with col2:
-                        annotation_note = st.text_input(
-                            "Note:",
-                            placeholder=f"Enter {selected_mode.lower()} details..."
-                        )
-                    
-                    if st.form_submit_button(f"Add {selected_mode} Annotation"):
-                        annotation_data = {
-                            "mode": selected_mode,
-                            "price": price_level,
-                            "note": annotation_note,
-                            "color": mode_config["color"],
-                            "timestamp": datetime.now().isoformat()
-                        }
-                        dm.save_stock_chart_drawing(symbol, f"{selected_mode}_{datetime.now().timestamp()}", annotation_data)
-                        st.success(f"Added {selected_mode} annotation at ${price_level:.2f}")
+                # Drawing canvas with chart as background
+                canvas_result = st_canvas(
+                    fill_color="rgba(255, 165, 0, 0.1)",
+                    stroke_width=mode_config["stroke_width"],
+                    stroke_color=mode_config["color"],
+                    background_image=chart_image,
+                    update_streamlit=True,
+                    height=canvas_height,
+                    width=canvas_width,
+                    drawing_mode="freedraw",
+                    point_display_radius=3,
+                    display_toolbar=True,
+                    key=f"canvas_{symbol}_{time_frame}_{selected_mode}",
+                )
+                
+                # Save drawings button
+                col_save, col_clear = st.columns(2)
+                with col_save:
+                    if st.button(f"Save {selected_mode} Drawing", key=f"save_drawing_{symbol}"):
+                        if canvas_result.json_data is not None:
+                            drawing_data = {
+                                "mode": selected_mode,
+                                "data": canvas_result.json_data,
+                                "color": mode_config["color"],
+                                "timestamp": datetime.now().isoformat()
+                            }
+                            dm.save_stock_chart_drawing(symbol, selected_mode, drawing_data)
+                            st.success(f"Saved {selected_mode} drawing!")
+                
+                with col_clear:
+                    if st.button(f"Clear {selected_mode} Drawings", key=f"clear_drawing_{symbol}"):
+                        dm.clear_stock_chart_drawings(symbol, selected_mode)
+                        st.success(f"Cleared {selected_mode} drawings!")
                         st.rerun()
                 
-                # Display current annotations
-                saved_annotations = dm.get_stock_chart_drawings(symbol)
-                if saved_annotations:
-                    st.write("**Current Annotations:**")
-                    for key, annotation in saved_annotations.items():
-                        col1, col2, col3 = st.columns([1, 2, 1])
-                        with col1:
-                            st.markdown(f"<span style='color: {annotation['color']}'>●</span> **{annotation['mode']}**", unsafe_allow_html=True)
-                        with col2:
-                            st.write(f"${annotation['price']:.2f} - {annotation['note']}")
-                        with col3:
-                            if st.button("Remove", key=f"remove_{key}"):
-                                dm.clear_stock_chart_drawings(symbol, key)
-                                st.rerun()
-                
                 # Display legend
-                st.write("**Annotation Color Legend:**")
+                st.write("**Drawing Legend:**")
                 legend_cols = st.columns(len(drawing_modes))
                 for i, (mode, config) in enumerate(drawing_modes.items()):
                     with legend_cols[i]:

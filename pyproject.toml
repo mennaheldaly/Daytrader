@@ -12,5 +12,4 @@ dependencies = [
     "trafilatura>=2.0.0",
     "yfinance>=0.2.63",
     "pillow>=11.2.1",
-    "numpy>=2.3.1",
 ]
