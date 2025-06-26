@@ -349,24 +349,24 @@ def trading_day_tab(dm):
                 # Load existing drawings
                 saved_drawings = dm.get_stock_chart_drawings(symbol)
                 
-                # Convert chart to PIL Image for canvas background
+                # Convert chart to numpy array for canvas background
+                import numpy as np
                 from PIL import Image
+                
+                # Convert bytes to PIL Image then to numpy array
                 chart_image = Image.open(io.BytesIO(chart_img))
+                chart_array = np.array(chart_image)
                 
-                # Resize chart image to fit canvas dimensions
-                canvas_width = 900
-                canvas_height = 450
-                chart_image = chart_image.resize((canvas_width, canvas_height), Image.Resampling.LANCZOS)
-                
-                # Drawing canvas with chart as background
+                # Create canvas with chart as background
+                st.write("**Draw directly on the chart:**")
                 canvas_result = st_canvas(
                     fill_color="rgba(255, 165, 0, 0.1)",
                     stroke_width=mode_config["stroke_width"],
                     stroke_color=mode_config["color"],
-                    background_image=chart_image,
+                    background_image=chart_array,
                     update_streamlit=True,
-                    height=canvas_height,
-                    width=canvas_width,
+                    height=450,
+                    width=900,
                     drawing_mode="freedraw",
                     point_display_radius=3,
                     display_toolbar=True,
