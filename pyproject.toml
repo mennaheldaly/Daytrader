@@ -11,4 +11,5 @@ dependencies = [
     "streamlit>=1.46.0",
     "trafilatura>=2.0.0",
     "yfinance>=0.2.63",
+    "pillow>=11.2.1",
 ]

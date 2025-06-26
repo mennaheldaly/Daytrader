@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import yfinance as yf
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import io
 import base64
 from streamlit_drawable_canvas import st_canvas
@@ -194,6 +195,56 @@ def longterm_playbook_tab(dm):
                         st.success(f"Removed {stock['symbol']} from permanent watchlist!")
                         st.rerun()
 
+def get_stock_chart_image(symbol, period="1d", interval="5m"):
+    """Fetch stock data and create a matplotlib chart as image for drawing"""
+    try:
+        stock = yf.Ticker(symbol)
+        data = stock.history(period=period, interval=interval)
+        
+        if data.empty:
+            return None, None
+            
+        # Create matplotlib figure
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        # Plot candlestick-style chart
+        for i in range(len(data)):
+            open_price = data['Open'].iloc[i]
+            close_price = data['Close'].iloc[i]
+            high_price = data['High'].iloc[i]
+            low_price = data['Low'].iloc[i]
+            
+            # Color based on up/down
+            color = 'green' if close_price >= open_price else 'red'
+            
+            # Draw high-low line
+            ax.plot([i, i], [low_price, high_price], color='black', linewidth=1)
+            
+            # Draw open-close rectangle
+            rect_height = abs(close_price - open_price)
+            rect_bottom = min(open_price, close_price)
+            rect = patches.Rectangle((i-0.3, rect_bottom), 0.6, rect_height, 
+                               facecolor=color, alpha=0.7, edgecolor='black')
+            ax.add_patch(rect)
+        
+        ax.set_title(f"{symbol} - {period.upper()} Chart")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Price ($)")
+        ax.grid(True, alpha=0.3)
+        
+        # Convert to image
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+        buf.seek(0)
+        img_data = buf.getvalue()
+        buf.close()
+        plt.close(fig)
+        
+        return img_data, data
+    except Exception as e:
+        st.error(f"Error fetching data for {symbol}: {str(e)}")
+        return None, None
+
 def get_stock_chart(symbol, period="1d", interval="5m"):
     """Fetch stock data and create a plotly chart"""
     try:
@@ -255,12 +306,10 @@ def trading_day_tab(dm):
             interval_map = {"1d": "5m", "5d": "15m", "1mo": "1h"}
             interval = interval_map[time_frame]
             
-            # Get and display chart
-            fig, data = get_stock_chart(symbol, time_frame, interval)
+            # Get and display chart with drawing capability
+            chart_img, data = get_stock_chart_image(symbol, time_frame, interval)
             
-            if fig is not None:
-                st.plotly_chart(fig, use_container_width=True)
-                
+            if chart_img is not None:
                 # Current price info
                 if data is not None and len(data) > 0:
                     current_price = data['Close'].iloc[-1]
@@ -274,6 +323,77 @@ def trading_day_tab(dm):
                         st.metric("Change", f"${price_change:.2f}", f"{price_change_pct:.2f}%")
                     with col_c:
                         st.metric("Volume", f"{data['Volume'].iloc[-1]:,.0f}")
+                
+                # Drawing mode selection
+                st.write("**Drawing Mode:**")
+                drawing_modes = {
+                    "Entry Points": {"color": "#00ff00", "stroke_width": 3},
+                    "Scale Up Levels": {"color": "#0000ff", "stroke_width": 3}, 
+                    "Stop Loss": {"color": "#ff0000", "stroke_width": 3},
+                    "Exit Targets": {"color": "#ff8c00", "stroke_width": 3},
+                    "Notes": {"color": "#800080", "stroke_width": 2}
+                }
+                
+                selected_mode = st.selectbox(
+                    "Select drawing mode:",
+                    options=list(drawing_modes.keys()),
+                    key=f"drawing_mode_{symbol}"
+                )
+                
+                mode_config = drawing_modes[selected_mode]
+                
+                # Convert image to base64 for canvas background
+                import base64
+                img_base64 = base64.b64encode(chart_img).decode()
+                
+                # Load existing drawings
+                saved_drawings = dm.get_stock_chart_drawings(symbol)
+                
+                # Display chart image first
+                st.image(chart_img, caption=f"{symbol} Stock Chart", use_container_width=True)
+                
+                # Drawing canvas overlay
+                canvas_result = st_canvas(
+                    fill_color="rgba(255, 165, 0, 0.1)",
+                    stroke_width=mode_config["stroke_width"],
+                    stroke_color=mode_config["color"],
+                    background_color="#ffffff",
+                    update_streamlit=True,
+                    height=400,
+                    width=800,
+                    drawing_mode="freedraw",
+                    point_display_radius=3,
+                    display_toolbar=True,
+                    key=f"canvas_{symbol}_{time_frame}_{selected_mode}",
+                )
+                
+                # Save drawings button
+                col_save, col_clear = st.columns(2)
+                with col_save:
+                    if st.button(f"Save {selected_mode} Drawing", key=f"save_drawing_{symbol}"):
+                        if canvas_result.json_data is not None:
+                            drawing_data = {
+                                "mode": selected_mode,
+                                "data": canvas_result.json_data,
+                                "color": mode_config["color"],
+                                "timestamp": datetime.now().isoformat()
+                            }
+                            dm.save_stock_chart_drawing(symbol, selected_mode, drawing_data)
+                            st.success(f"Saved {selected_mode} drawing!")
+                
+                with col_clear:
+                    if st.button(f"Clear {selected_mode} Drawings", key=f"clear_drawing_{symbol}"):
+                        dm.clear_stock_chart_drawings(symbol, selected_mode)
+                        st.success(f"Cleared {selected_mode} drawings!")
+                        st.rerun()
+                
+                # Display legend
+                st.write("**Drawing Legend:**")
+                legend_cols = st.columns(len(drawing_modes))
+                for i, (mode, config) in enumerate(drawing_modes.items()):
+                    with legend_cols[i]:
+                        st.markdown(f"<span style='color: {config['color']}'>●</span> {mode}", unsafe_allow_html=True)
+                        
             else:
                 st.error(f"Unable to fetch chart data for {symbol}")
         

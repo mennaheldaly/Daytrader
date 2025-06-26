@@ -12,6 +12,7 @@ class DataManager:
         self.permanent_stocks_file = os.path.join(self.data_dir, "permanent_stocks.json")
         self.trading_plan_file = os.path.join(self.data_dir, "trading_plan.json")
         self.stock_trading_plans_file = os.path.join(self.data_dir, "stock_trading_plans.json")
+        self.chart_drawings_file = os.path.join(self.data_dir, "chart_drawings.json")
         self.reflections_file = os.path.join(self.data_dir, "reflections.json")
         self.historical_stocks_file = os.path.join(self.data_dir, "historical_stocks.json")
     
@@ -155,6 +156,30 @@ class DataManager:
         """Get trading plan for a specific stock"""
         stock_plans = self.get_stock_trading_plans()
         return stock_plans.get(symbol, {})
+    
+    # Chart drawings management
+    def save_stock_chart_drawing(self, symbol: str, mode: str, drawing_data: Dict):
+        """Save chart drawing for a specific stock and mode"""
+        drawings = self.load_json_file(self.chart_drawings_file, {})
+        if symbol not in drawings:
+            drawings[symbol] = {}
+        drawings[symbol][mode] = drawing_data
+        self.save_json_file(self.chart_drawings_file, drawings)
+    
+    def get_stock_chart_drawings(self, symbol: str) -> Dict:
+        """Get all chart drawings for a specific stock"""
+        drawings = self.load_json_file(self.chart_drawings_file, {})
+        return drawings.get(symbol, {})
+    
+    def clear_stock_chart_drawings(self, symbol: str, mode: str = ""):
+        """Clear chart drawings for a specific stock and mode (or all modes)"""
+        drawings = self.load_json_file(self.chart_drawings_file, {})
+        if symbol in drawings:
+            if mode and mode != "":
+                drawings[symbol].pop(mode, None)
+            else:
+                drawings[symbol] = {}
+        self.save_json_file(self.chart_drawings_file, drawings)
     
     # Daily reflection management
     def save_daily_reflection(self, reflection_data: Dict):
