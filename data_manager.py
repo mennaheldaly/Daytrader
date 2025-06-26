@@ -13,6 +13,7 @@ class DataManager:
         self.trading_plan_file = os.path.join(self.data_dir, "trading_plan.json")
         self.reflections_file = os.path.join(self.data_dir, "reflections.json")
         self.historical_stocks_file = os.path.join(self.data_dir, "historical_stocks.json")
+        self.stock_trading_plans_file = os.path.join(self.data_dir, "stock_trading_plans.json")
     
     def ensure_data_directory(self):
         """Create data directory if it doesn't exist"""
@@ -177,7 +178,7 @@ class DataManager:
             most_common = mistake_counts.most_common(1)[0]
             return {'mistake': most_common[0], 'count': most_common[1]}
         
-        return None
+        return {}
     
     def get_weekly_scorecard_data(self) -> Dict:
         """Get data for weekly scorecard"""
@@ -238,3 +239,36 @@ class DataManager:
             'discipline_streak': discipline_streak,
             'avg_discipline': avg_discipline
         }
+    
+    # Stock trading plans management
+    def save_stock_trading_plan(self, plan_data: Dict):
+        """Save trading plan for a specific stock"""
+        stock_plans = self.load_json_file(self.stock_trading_plans_file, {})
+        
+        symbol = plan_data['symbol']
+        date = plan_data['date']
+        
+        if symbol not in stock_plans:
+            stock_plans[symbol] = []
+        
+        # Remove existing plan for today if it exists
+        stock_plans[symbol] = [p for p in stock_plans[symbol] if p.get('date') != date]
+        
+        # Add new plan
+        stock_plans[symbol].append(plan_data)
+        
+        self.save_json_file(self.stock_trading_plans_file, stock_plans)
+    
+    def get_stock_trading_plan(self, symbol: str, date: str | None = None) -> Dict:
+        """Get trading plan for a specific stock and date"""
+        if date is None:
+            date = datetime.now().strftime('%Y-%m-%d')
+        
+        stock_plans = self.load_json_file(self.stock_trading_plans_file, {})
+        
+        if symbol in stock_plans:
+            for plan in stock_plans[symbol]:
+                if plan.get('date') == date:
+                    return plan
+        
+        return {}

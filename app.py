@@ -5,6 +5,9 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from data_manager import DataManager
 from utils import get_common_mistakes, get_trading_rules, get_good_practices
+from chart_utils import get_stock_chart, create_blank_chart_template, convert_image_for_canvas
+from streamlit_drawable_canvas import st_canvas
+import numpy as np
 
 # Initialize data manager
 @st.cache_resource
@@ -192,17 +195,9 @@ def longterm_playbook_tab(dm):
 def trading_day_tab(dm):
     st.header("Trading Day Dashboard")
     
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.subheader("📊 Stocks in Play Today")
-        today_stocks = dm.get_today_stocks()
-        if today_stocks:
-            for stock in today_stocks:
-                st.write(f"• **{stock['symbol']}**: {stock['reason']}")
-        else:
-            st.warning("No stocks selected for today. Go to Morning Setup to add stocks.")
-        
         st.subheader("🚨 Most Repeated Mistake (Last Week)")
         most_common_mistake = dm.get_most_common_mistake_last_week()
         if most_common_mistake:
@@ -234,6 +229,137 @@ def trading_day_tab(dm):
             st.write("**Rules to Follow:**")
             for rule in plan['rules']:
                 st.write(f"• {rule}")
+    
+    # Stocks in Play with Interactive Charts
+    st.subheader("📊 Stocks in Play Today")
+    today_stocks = dm.get_today_stocks()
+    
+    if not today_stocks:
+        st.warning("No stocks selected for today. Go to Morning Setup to add stocks.")
+        return
+    
+    # Create tabs for each stock
+    stock_tabs = st.tabs([stock['symbol'] for stock in today_stocks])
+    
+    for i, stock in enumerate(today_stocks):
+        with stock_tabs[i]:
+            st.write(f"**Reason for watching:** {stock['reason']}")
+            
+            # Chart options
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                period = st.selectbox(f"Time Period for {stock['symbol']}", 
+                                    ["1d", "5d", "1mo"], 
+                                    key=f"period_{stock['symbol']}")
+            with col2:
+                interval = st.selectbox(f"Interval for {stock['symbol']}", 
+                                      ["1m", "5m", "15m", "30m", "1h"] if period == "1d" else ["5m", "15m", "30m", "1h", "1d"],
+                                      key=f"interval_{stock['symbol']}")
+            with col3:
+                if st.button(f"Refresh Chart", key=f"refresh_{stock['symbol']}"):
+                    st.rerun()
+            
+            # Fetch and display chart
+            with st.spinner(f"Loading chart for {stock['symbol']}..."):
+                chart_img = get_stock_chart(stock['symbol'], period, interval)
+                
+                if chart_img is None:
+                    st.error(f"Could not fetch chart data for {stock['symbol']}. Using template.")
+                    chart_img = create_blank_chart_template()
+            
+            # Interactive drawing canvas
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.write("**Current Stock Chart:**")
+                st.image(chart_img, caption=f"{stock['symbol']} Price Chart", use_container_width=True)
+                
+                # Alternative drawing approach using plotly
+                st.write("**Interactive Chart with Drawing:**")
+                try:
+                    canvas_result = st_canvas(
+                        fill_color="rgba(255, 165, 0, 0.3)",
+                        stroke_width=2,
+                        stroke_color="red",
+                        background_image=None,  # Use None to avoid compatibility issues
+                        update_streamlit=True,
+                        width=800,
+                        height=300,
+                        drawing_mode="freedraw",
+                        key=f"canvas_{stock['symbol']}",
+                    )
+                except Exception as e:
+                    st.warning("Interactive drawing not available. Using text-based planning instead.")
+                    canvas_result = None
+                
+                # Drawing instructions
+                if canvas_result is not None:
+                    st.write("**Drawing Instructions:**")
+                    st.write("- Red lines: Entry points and stop losses")
+                    st.write("- Green lines: Profit targets") 
+                    st.write("- Blue lines: Scale-up levels")
+                else:
+                    st.write("**Use the form on the right to plan your trades for this stock.**")
+            
+            with col2:
+                st.write("**Trading Plan for this Stock:**")
+                
+                # Initial Entry
+                st.write("**a. Initial Entry:**")
+                entry_plan = st.text_area(f"Entry strategy", 
+                                        placeholder="Describe your entry plan...",
+                                        key=f"entry_plan_{stock['symbol']}")
+                
+                # Scaling conditions
+                st.write("**b. If it reaches mark X, do trade of size Y:**")
+                scale_up_price = st.number_input(f"Scale up at price $", 
+                                               min_value=0.01, 
+                                               step=0.01,
+                                               key=f"scale_price_{stock['symbol']}")
+                scale_up_size = st.selectbox(f"Scale up size", 
+                                           ["25%", "50%", "75%", "100%", "Double position"],
+                                           key=f"scale_size_{stock['symbol']}")
+                
+                # Drop action
+                st.write("**c. If it drops to certain mark:**")
+                drop_price = st.number_input(f"Action at price $", 
+                                           min_value=0.01, 
+                                           step=0.01,
+                                           key=f"drop_price_{stock['symbol']}")
+                drop_action = st.selectbox(f"Action to take", 
+                                         ["Size up", "Partial exit", "Full exit", "Hold"],
+                                         key=f"drop_action_{stock['symbol']}")
+                
+                # Exit strategy
+                st.write("**d. Exit Strategy:**")
+                exit_plan = st.text_area(f"Exit conditions", 
+                                       placeholder="When and how to exit...",
+                                       key=f"exit_plan_{stock['symbol']}")
+                
+                # Wrong scenario
+                st.write("**e. If completely wrong:**")
+                wrong_plan = st.text_area(f"Emergency exit plan", 
+                                        placeholder="What if everything goes wrong...",
+                                        key=f"wrong_plan_{stock['symbol']}")
+                
+                # Save trading plan for this stock
+                if st.button(f"Save Plan for {stock['symbol']}", key=f"save_plan_{stock['symbol']}", type="primary"):
+                    trading_plan = {
+                        'symbol': stock['symbol'],
+                        'date': datetime.now().strftime('%Y-%m-%d'),
+                        'entry_plan': entry_plan,
+                        'scale_up_price': scale_up_price,
+                        'scale_up_size': scale_up_size,
+                        'drop_price': drop_price,
+                        'drop_action': drop_action,
+                        'exit_plan': exit_plan,
+                        'wrong_plan': wrong_plan,
+                        'canvas_data': canvas_result.json_data if canvas_result.json_data else None
+                    }
+                    dm.save_stock_trading_plan(trading_plan)
+                    st.success(f"Trading plan saved for {stock['symbol']}!")
+            
+            st.divider()
 
 def end_of_day_reflection_tab(dm):
     st.header("End-of-day Reflection")
@@ -303,8 +429,9 @@ def weekly_scorecard_tab(dm):
         st.subheader("📊 Mistake Frequency")
         if weekly_data['mistake_counts']:
             # Create bar chart for mistakes
-            mistakes_df = pd.DataFrame(list(weekly_data['mistake_counts'].items()), 
-                                     columns=['Mistake', 'Frequency'])
+            mistakes_data = list(weekly_data['mistake_counts'].items())
+            mistakes_df = pd.DataFrame(mistakes_data)
+            mistakes_df.columns = ['Mistake', 'Frequency']
             fig = px.bar(mistakes_df, x='Mistake', y='Frequency', 
                         title="Mistakes This Week")
             fig.update_xaxes(tickangle=45)
