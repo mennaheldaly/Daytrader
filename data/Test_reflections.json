@@ -1,0 +1,17 @@
+[
+  {
+    "date": "2025-06-27",
+    "broken_rules": [
+      "Wait for confirmation before entering"
+    ],
+    "mistakes_made": [
+      "Trading against the trend",
+      "Taking profits too early"
+    ],
+    "good_practices": [
+      "Took profits at predetermined levels"
+    ],
+    "discipline_score": 6,
+    "reflection_notes": "Reflection"
+  }
+]

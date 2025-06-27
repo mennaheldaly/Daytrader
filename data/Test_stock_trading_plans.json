@@ -1,0 +1,20 @@
+{
+  "AAPL": {
+    "initial_entry": "$150 on breakout",
+    "entry_size": "100 shares",
+    "scale_up_condition": "$155",
+    "scale_down_condition": "$145",
+    "exit_strategy": "Exit if",
+    "wrong_scenario": "If wrong do",
+    "last_updated": "2025-06-27 13:42:45"
+  },
+  "TESLA": {
+    "initial_entry": "BLAH",
+    "entry_size": "",
+    "scale_up_condition": "",
+    "scale_down_condition": "",
+    "exit_strategy": "",
+    "wrong_scenario": "",
+    "last_updated": "2025-06-27 13:43:20"
+  }
+}

@@ -5,15 +5,22 @@ from collections import Counter
 from typing import Dict, List, Any
 
 class DataManager:
-    def __init__(self):
+    def __init__(self, username=None):
         self.data_dir = "data"
         self.ensure_data_directory()
-        self.today_stocks_file = os.path.join(self.data_dir, "today_stocks.json")
-        self.permanent_stocks_file = os.path.join(self.data_dir, "permanent_stocks.json")
-        self.trading_plan_file = os.path.join(self.data_dir, "trading_plan.json")
-        self.stock_trading_plans_file = os.path.join(self.data_dir, "stock_trading_plans.json")
-        self.reflections_file = os.path.join(self.data_dir, "reflections.json")
-        self.historical_stocks_file = os.path.join(self.data_dir, "historical_stocks.json")
+        self.username = username
+        self.today_stocks_file = self._user_file("today_stocks.json")
+        self.permanent_stocks_file = self._user_file("permanent_stocks.json")
+        self.trading_plan_file = self._user_file("trading_plan.json")
+        self.stock_trading_plans_file = self._user_file("stock_trading_plans.json")
+        self.reflections_file = self._user_file("reflections.json")
+        self.historical_stocks_file = self._user_file("historical_stocks.json")
+    
+    def _user_file(self, filename):
+        if self.username:
+            name, ext = os.path.splitext(filename)
+            return os.path.join(self.data_dir, f"{self.username}_{name}{ext}")
+        return os.path.join(self.data_dir, filename)
     
     def ensure_data_directory(self):
         """Create data directory if it doesn't exist"""

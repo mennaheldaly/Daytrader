@@ -1,0 +1,12 @@
+[
+  {
+    "symbol": "AAPL",
+    "reason": "Reason",
+    "date_added": "2025-06-27"
+  },
+  {
+    "symbol": "TESLA",
+    "reason": "Reason2",
+    "date_added": "2025-06-27"
+  }
+]

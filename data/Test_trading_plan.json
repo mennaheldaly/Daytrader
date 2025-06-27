@@ -1,0 +1,10 @@
+{
+  "setup_criteria": "Setup",
+  "market_notes": "Note",
+  "mental_reminders": "Reminder",
+  "tactical_limits": "Limit",
+  "rules": [
+    "Wait for confirmation before entering"
+  ],
+  "last_updated": "2025-06-27 13:43:37"
+}

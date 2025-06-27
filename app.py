@@ -10,13 +10,55 @@ import base64
 from streamlit_drawable_canvas import st_canvas
 from data_manager import DataManager
 from utils import get_common_mistakes, get_trading_rules, get_good_practices
+from user_manager import UserManager
 
 # Initialize data manager
 @st.cache_resource
-def get_data_manager():
-    return DataManager()
+def get_data_manager(username=None):
+    from data_manager import DataManager
+    return DataManager(username=username)
+
+# Initialize user manager
+@st.cache_resource
+def get_user_manager():
+    return UserManager()
+
+def login_registration_modal():
+    st.header("Login or Register")
+    user_manager = get_user_manager()
+    mode = st.radio("Select mode", ["Login", "Register"])
+    if mode == "Login":
+        username = st.text_input("Username", key="login_username")
+        password = st.text_input("Password", type="password", key="login_password")
+        if st.button("Login"):
+            if user_manager.authenticate_user(username, password):
+                st.session_state["logged_in"] = True
+                st.session_state["username"] = username
+                st.success("Logged in successfully!")
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+    else:
+        username = st.text_input("Username", key="reg_username")
+        email = st.text_input("Email", key="reg_email")
+        password = st.text_input("Password", type="password", key="reg_password")
+        confirm_password = st.text_input("Confirm Password", type="password", key="reg_confirm_password")
+        if st.button("Register"):
+            if password != confirm_password:
+                st.error("Passwords do not match.")
+            elif not username or not email or not password:
+                st.error("All fields are required.")
+            else:
+                success, msg = user_manager.register_user(username, email, password)
+                if success:
+                    st.success("Registration successful! Please log in.")
+                else:
+                    st.error(msg)
+    st.stop()
 
 def main():
+    if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+        login_registration_modal()
     st.set_page_config(
         page_title="DayTrading Helper",
         page_icon="📈",
@@ -25,8 +67,9 @@ def main():
     
     st.title("📈 DayTrading Helper")
     
-    # Initialize data manager
-    dm = get_data_manager()
+    # Initialize user-specific data manager
+    username = st.session_state.get("username")
+    dm = get_data_manager(username=username)
     
     # Create tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
